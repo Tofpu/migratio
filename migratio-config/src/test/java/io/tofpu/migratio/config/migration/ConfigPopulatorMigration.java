@@ -11,11 +11,6 @@ public class ConfigPopulatorMigration implements ConfigMigration {
     }
 
     @Override
-    public String description() {
-        return "Populates the config";
-    }
-
-    @Override
     public void handle(ConfigMigrationContext context) {
         FileAdapter fileAdapter = context.fileAdapter();
 

@@ -11,11 +11,6 @@ public class NameToPersonMigration implements ConfigMigration {
     }
 
     @Override
-    public String description() {
-        return "Migrates path 'name' to 'person'";
-    }
-
-    @Override
     public void handle(ConfigMigrationContext context) {
         FileAdapter fileAdapter = context.fileAdapter();
 
