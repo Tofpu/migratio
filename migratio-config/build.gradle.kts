@@ -1,5 +1,5 @@
 plugins {
-    id("java")
+    id("java-library")
 }
 
 group = "io.tofpu.migratio"
@@ -11,7 +11,7 @@ repositories {
 }
 
 dependencies {
-    implementation(project(":migratio-core"))
+    api(project(":migratio-core"))
     implementation("com.google.guava:guava:33.2.1-jre")
 
     testImplementation("com.github.Carleslc.Simple-YAML:Simple-Yaml:1.8.4")
