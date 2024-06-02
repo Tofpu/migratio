@@ -42,9 +42,10 @@ public abstract class Migratio<M extends Migration<?>> {
             this.classLoader = Thread.currentThread().getContextClassLoader();
         }
 
-        public Builder<M> setClassLoader(ClassLoader classLoader) {
+        public M setClassLoader(ClassLoader classLoader) {
             this.classLoader = classLoader;
-            return this;
+            //noinspection unchecked
+            return (M) this;
         }
 
         protected <T extends Migration<?>> Collection<T> findAndSortMigrations(Class<T> migrationType) {
