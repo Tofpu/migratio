@@ -6,6 +6,8 @@ import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.loader.ConfigurationLoader;
 import org.spongepowered.configurate.serialize.SerializationException;
 
+import java.lang.reflect.Type;
+
 public class ConfigurateFileAdapter<N extends ConfigurationNode> implements FileAdapter {
     private final ConfigurationLoader<N> loader;
     private final N node;
@@ -33,9 +35,9 @@ public class ConfigurateFileAdapter<N extends ConfigurationNode> implements File
     }
 
     @Override
-    public <T> T read(String path, Class<T> type) {
+    public <T> T read(String path, Type type) {
         try {
-            return goToPath(path).get(type);
+            return (T) goToPath(path).get(type);
         } catch (SerializationException e) {
             throw new RuntimeException(e);
         }
