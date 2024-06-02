@@ -5,7 +5,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.simpleyaml.configuration.file.YamlFile;
 
-import java.io.*;
+import java.io.File;
+import java.io.IOException;
+import java.lang.reflect.Type;
 import java.nio.file.Files;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -56,21 +58,17 @@ public class MigratioConfigTest {
         }
 
         @Override
-        public void write(String path, Object object) {
+        public void write(String path, Type type, Object object) {
             yamlFile.set(path, object);
         }
 
         @Override
-        public <T> T read(String path, Class<T> type) {
+        public <T> T read(String path, Type type) {
             Object result = yamlFile.get(path);
             if (result == null) {
                 return null;
             }
-            
-            if (!type.isInstance(result)) {
-                throw new IllegalArgumentException(String.format("Incorrect type: %s. Expected %s", type, result.getClass()));
-            }
-            return type.cast(result);
+            return (T) result;
         }
 
         @Override
