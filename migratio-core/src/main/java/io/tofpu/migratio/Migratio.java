@@ -8,6 +8,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 public abstract class Migratio<M extends Migration<?>> {
@@ -32,14 +33,19 @@ public abstract class Migratio<M extends Migration<?>> {
         }
     }
 
-    public abstract static class Builder<M extends Builder<M>> {
-        private final String packageName;
-
+    public static class Builder<M extends Builder<M>> {
         private ClassLoader classLoader;
+        private Supplier<Class<?>[]> classesSupplier;
 
         protected Builder(String packageName) {
-            this.packageName = packageName;
             this.classLoader = Thread.currentThread().getContextClassLoader();
+            this.classesSupplier = () -> {
+                try {
+                    return ClassFinder.getClasses(packageName, classLoader);
+                } catch (IOException | ClassNotFoundException e) {
+                    throw new RuntimeException(e);
+                }
+            };
         }
 
         public M setClassLoader(ClassLoader classLoader) {
@@ -48,23 +54,25 @@ public abstract class Migratio<M extends Migration<?>> {
             return (M) this;
         }
 
+        public M setClassesSupplier(Supplier<Class<?>[]> classesSupplier) {
+            this.classesSupplier = classesSupplier;
+            //noinspection unchecked
+            return (M) this;
+        }
+
         protected <T extends Migration<?>> Collection<T> findAndSortMigrations(Class<T> migrationType) {
-            try {
-                return Arrays.stream(ClassFinder.getClasses(packageName, classLoader))
-                        .filter(type -> !type.isInterface())
-                        .filter(migrationType::isAssignableFrom)
-                        .map(type -> {
-                            try {
-                                return migrationType.cast(type.newInstance());
-                            } catch (InstantiationException | IllegalAccessException e) {
-                                throw new RuntimeException(e);
-                            }
-                        })
-                        .sorted((o1, o2) -> NaturalOrderComparator.INSTANCE.compare(o1.version(), o2.version()))
-                        .collect(Collectors.toList());
-            } catch (ClassNotFoundException | IOException e) {
-                throw new RuntimeException(e);
-            }
+            return Arrays.stream(classesSupplier.get())
+                    .filter(type -> !type.isInterface())
+                    .filter(migrationType::isAssignableFrom)
+                    .map(type -> {
+                        try {
+                            return migrationType.cast(type.newInstance());
+                        } catch (InstantiationException | IllegalAccessException e) {
+                            throw new RuntimeException(e);
+                        }
+                    })
+                    .sorted((o1, o2) -> NaturalOrderComparator.INSTANCE.compare(o1.version(), o2.version()))
+                    .collect(Collectors.toList());
         }
     }
 }
