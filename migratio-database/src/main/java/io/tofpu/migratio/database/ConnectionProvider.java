@@ -11,11 +11,13 @@ public interface ConnectionProvider {
     }
 
     static ConnectionProvider accept(String jdbcUrl) {
-        try {
-            return accept(DriverManager.getConnection(jdbcUrl));
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
+        return () -> {
+            try {
+                return DriverManager.getConnection(jdbcUrl);
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
+        };
     }
 
     Connection get();
