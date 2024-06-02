@@ -22,9 +22,9 @@ public class ConfigurateFileAdapter<N extends ConfigurationNode> implements File
     }
 
     @Override
-    public void write(String path, Object object) {
+    public void write(String path, Type type, Object object) {
         try {
-            goToPath(path).set(object);
+            goToPath(path).set(type, object);
         } catch (SerializationException e) {
             throw new RuntimeException(e);
         }
