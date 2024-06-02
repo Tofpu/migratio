@@ -7,15 +7,14 @@ import io.tofpu.migratio.database.adapter.DefaultDatabaseVersionAdapter;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Collection;
-import java.util.function.Supplier;
 
 // todo: add support for running this asynchronously
 public class MigratioDatabase extends Migratio<DatabaseMigration> {
-    private final Supplier<Connection> connectionSupplier;
+    private final ConnectionProvider connectionProvider;
 
-    MigratioDatabase(Collection<DatabaseMigration> migrations, Supplier<Connection> connectionSupplier) {
+    MigratioDatabase(Collection<DatabaseMigration> migrations, ConnectionProvider connectionProvider) {
         super(migrations);
-        this.connectionSupplier = connectionSupplier;
+        this.connectionProvider = connectionProvider;
     }
 
     public static Builder newBuilder(String packageName) {
@@ -23,7 +22,7 @@ public class MigratioDatabase extends Migratio<DatabaseMigration> {
     }
 
     public void migrate() throws SQLException {
-        try (Connection connection = connectionSupplier.get()) {
+        try (Connection connection = connectionProvider.get()) {
             DatabaseMigrationContext context = new DatabaseMigrationContext(connection);
 
             DatabaseVersionAdapter versionAdapter = new DefaultDatabaseVersionAdapter(connection);
@@ -41,8 +40,8 @@ public class MigratioDatabase extends Migratio<DatabaseMigration> {
             super(packageName);
         }
 
-        public MigratioDatabase build(Supplier<Connection> connectionSupplier) {
-            return new MigratioDatabase(findAndSortMigrations(DatabaseMigration.class), connectionSupplier);
+        public MigratioDatabase build(ConnectionProvider connectionProvider) {
+            return new MigratioDatabase(findAndSortMigrations(DatabaseMigration.class), connectionProvider);
         }
     }
 }
