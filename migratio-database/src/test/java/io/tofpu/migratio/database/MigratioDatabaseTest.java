@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.concurrent.ExecutionException;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -29,14 +30,33 @@ public class MigratioDatabaseTest {
     }
 
     @Test
-    void migrate_test() {
+    void sync_migrate_test() {
         ConnectionProvider connectionProvider = ConnectionProvider.accept("jdbc:sqlite:test-results/temp.db");
-        MigratioDatabase migratioDatabase = MigratioDatabase.newBuilder("io.tofpu.migratio")
-                .build(connectionProvider);
+        SyncMigratioDatabase migratioDatabase = MigratioDatabase.newBuilder("io.tofpu.migratio")
+                .buildSync(connectionProvider);
 
         try {
             migratioDatabase.migrate();
         } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+
+        try (Connection connection = connectionProvider.get()) {
+            assertTrue(connection.createStatement().execute("SELECT name FROM persons WHERE name = 'Tofpu' AND age = '99'"));
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Test
+    void async_migrate_test() {
+        ConnectionProvider connectionProvider = ConnectionProvider.accept("jdbc:sqlite:test-results/temp.db");
+        AsyncMigratioDatabase migratioDatabase = MigratioDatabase.newBuilder("io.tofpu.migratio")
+                .buildAsync(connectionProvider);
+
+        try {
+            migratioDatabase.migrate().get();
+        } catch (ExecutionException | InterruptedException e) {
             throw new RuntimeException(e);
         }
 
