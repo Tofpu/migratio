@@ -29,7 +29,7 @@ public class DefaultDatabaseVersionAdapter implements DatabaseVersionAdapter {
             ResultSet result = connection.createStatement().executeQuery("SELECT version FROM migratio_history");
 
             String highestVersion = null;
-            while (result.next()) {
+            do {
                 String version = result.getString("version");
                 if (highestVersion == null) {
                     highestVersion = version;
@@ -39,7 +39,7 @@ public class DefaultDatabaseVersionAdapter implements DatabaseVersionAdapter {
                 if (NaturalOrderComparator.compareTo(highestVersion, version) < 0) {
                     highestVersion = version;
                 }
-            }
+            } while (result.next());
             return highestVersion;
         } catch (SQLException e) {
             throw new RuntimeException(e);
