@@ -7,13 +7,14 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.function.Supplier;
 
 public class DefaultDatabaseVersionAdapter implements DatabaseVersionAdapter {
-    private final Connection connection;
+    private final Supplier<Connection> connection;
 
     private boolean tableExists = false;
 
-    public DefaultDatabaseVersionAdapter(Connection connection) {
+    public DefaultDatabaseVersionAdapter(Supplier<Connection> connection) {
         this.connection = connection;
     }
 
@@ -26,7 +27,7 @@ public class DefaultDatabaseVersionAdapter implements DatabaseVersionAdapter {
                 tableExists = true;
             }
 
-            ResultSet result = connection.createStatement().executeQuery("SELECT version FROM migratio_history");
+            ResultSet result = connection.get().createStatement().executeQuery("SELECT version FROM migratio_history");
 
             String highestVersion = null;
             do {
@@ -54,7 +55,7 @@ public class DefaultDatabaseVersionAdapter implements DatabaseVersionAdapter {
         }
 
         try {
-            PreparedStatement preparedStatement = connection.prepareStatement("INSERT INTO migratio_history VALUES (?1, ?2)");
+            PreparedStatement preparedStatement = connection.get().prepareStatement("INSERT INTO migratio_history VALUES (?1, ?2);");
             preparedStatement.setString(1, detail.version());
             preparedStatement.setString(2, detail.description());
             preparedStatement.execute();
@@ -65,9 +66,9 @@ public class DefaultDatabaseVersionAdapter implements DatabaseVersionAdapter {
 
     private void createTable() {
         try {
-            connection.prepareStatement("CREATE TABLE IF NOT EXISTS migratio_history ("
-            + "version varchar(255),"
-            + "description varchar(255))").execute();
+            connection.get().prepareStatement("CREATE TABLE IF NOT EXISTS migratio_history ("
+            + "version varchar(255) NOT NULL,"
+            + "description varchar(255));").execute();
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
