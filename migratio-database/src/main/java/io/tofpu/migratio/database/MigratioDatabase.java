@@ -9,6 +9,8 @@ import java.sql.SQLException;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 public interface MigratioDatabase {
     static Builder newBuilder(String packageName) {
@@ -48,16 +50,38 @@ public interface MigratioDatabase {
         }
 
         public void migrate() throws SQLException {
-            try (Connection connection = connectionProvider.get()) {
-                DatabaseMigrationContext context = new DatabaseMigrationContext(connection);
-
-                DatabaseVersionAdapter versionAdapter = new DefaultDatabaseVersionAdapter(connection);
+            final AtomicReference<Connection> connectionRef = new AtomicReference<>(connectionProvider.get());
+            try {
+                DatabaseVersionAdapter versionAdapter = new DefaultDatabaseVersionAdapter(connectionRef::get);
                 String currentVersion = versionAdapter.readCurrentVersion();
 
                 migrate(currentVersion, databaseMigration -> {
-                    databaseMigration.handle(context);
+                    getNewConnectionIfClosed(connectionRef); // in-case the consumer accidentally closes the connection
+                    databaseMigration.handle(new DatabaseMigrationContext(connectionRef.get()));
+                    getNewConnectionIfClosed(connectionRef); // in-case the consumer accidentally closes the connection
+
                     versionAdapter.write(databaseMigration);
                 });
+            } finally {
+                connectionRef.get().close();
+            }
+        }
+
+        private void getNewConnectionIfClosed(AtomicReference<Connection> connection) {
+            try {
+                if (connection.get().isClosed()) {
+                    connection.set(connectionProvider.get());
+                }
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        @Override
+        public String getCurrentVersion() throws SQLException {
+            try (Connection connection = connectionProvider.get()) {
+                DatabaseVersionAdapter versionAdapter = new DefaultDatabaseVersionAdapter(() -> connection);
+                return versionAdapter.readCurrentVersion();
             }
         }
     }
@@ -82,11 +106,29 @@ public interface MigratioDatabase {
             });
         }
 
+        @Override
+        public CompletableFuture<String> getCurrentVersion() {
+            return supplyAsync(() -> {
+                try {
+                    return delegate.getCurrentVersion();
+                } catch (SQLException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+        }
+
         private CompletableFuture<Void> runAsync(Runnable runnable) {
             if (executor == null) {
                 return CompletableFuture.runAsync(runnable);
             }
             return CompletableFuture.runAsync(runnable, executor);
+        }
+
+        private <U> CompletableFuture<U> supplyAsync(Supplier<U> supplier) {
+            if (executor == null) {
+                return CompletableFuture.supplyAsync(supplier);
+            }
+            return CompletableFuture.supplyAsync(supplier, executor);
         }
     }
 }
