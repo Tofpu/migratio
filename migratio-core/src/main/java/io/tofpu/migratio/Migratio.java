@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -33,9 +34,10 @@ public abstract class Migratio<M extends Migration<?>> {
         }
     }
 
-    public static class Builder<M extends Builder<M>> {
+    public static class Builder<B extends Builder<B, M>, M extends Migration<?>> {
         private ClassLoader classLoader;
         private Supplier<Class<?>[]> classesSupplier;
+        private Supplier<M[]> migrationSupplier;
 
         protected Builder(String packageName) {
             this.classLoader = Thread.currentThread().getContextClassLoader();
@@ -48,20 +50,26 @@ public abstract class Migratio<M extends Migration<?>> {
             };
         }
 
-        public M setClassLoader(ClassLoader classLoader) {
+        public B setClassLoader(ClassLoader classLoader) {
             this.classLoader = classLoader;
             //noinspection unchecked
-            return (M) this;
+            return (B) this;
         }
 
-        public M setClassesSupplier(Supplier<Class<?>[]> classesSupplier) {
+        public B setClassesSupplier(Supplier<Class<?>[]> classesSupplier) {
             this.classesSupplier = classesSupplier;
             //noinspection unchecked
-            return (M) this;
+            return (B) this;
         }
 
-        protected <T extends Migration<?>> Collection<T> findAndSortMigrations(Class<T> migrationType) {
-            return Arrays.stream(classesSupplier.get())
+        public B setMigrationSupplier(Supplier<M[]> migrationSupplier) {
+            this.migrationSupplier = migrationSupplier;
+            //noinspection unchecked
+            return (B) this;
+        }
+
+        protected Collection<M> findAndSortMigrations(Class<M> migrationType) {
+            List<M> results = Arrays.stream(classesSupplier.get())
                     .filter(type -> !type.isInterface())
                     .filter(migrationType::isAssignableFrom)
                     .map(type -> {
@@ -73,6 +81,10 @@ public abstract class Migratio<M extends Migration<?>> {
                     })
                     .sorted((o1, o2) -> NaturalOrderComparator.INSTANCE.compare(o1.version(), o2.version()))
                     .collect(Collectors.toList());
+            if (migrationSupplier != null) {
+                results.addAll(Arrays.asList(migrationSupplier.get()));
+            }
+            return results;
         }
     }
 }

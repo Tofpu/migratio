@@ -66,7 +66,7 @@ public class MigratioConfig extends Migratio<ConfigMigration> {
         }
     }
 
-    public static class Builder extends Migratio.Builder<Builder> {
+    public static class Builder extends Migratio.Builder<Builder, ConfigMigration> {
         private final File file;
 
         Builder(String packageName, File file) {
