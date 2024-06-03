@@ -17,7 +17,7 @@ public interface MigratioDatabase {
         return new Builder(packageName);
     }
 
-    class Builder extends Migratio.Builder<Builder> {
+    class Builder extends Migratio.Builder<Builder, DatabaseMigration> {
         protected Builder(String packageName) {
             super(packageName);
         }
