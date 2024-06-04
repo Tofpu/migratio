@@ -1,5 +1,6 @@
 package io.tofpu.migratio;
 
+import io.tofpu.migratio.annotation.MigrationExclude;
 import io.tofpu.migratio.util.ClassFinder;
 import io.tofpu.migratio.util.NaturalOrderComparator;
 
@@ -71,6 +72,7 @@ public abstract class Migratio<M extends Migration<?>> {
         protected Collection<M> findAndSortMigrations(Class<M> migrationType) {
             List<M> results = Arrays.stream(classesSupplier.get())
                     .filter(type -> !type.isInterface())
+                    .filter(type -> !type.isAnnotationPresent(MigrationExclude.class))
                     .filter(migrationType::isAssignableFrom)
                     .map(type -> {
                         try {
