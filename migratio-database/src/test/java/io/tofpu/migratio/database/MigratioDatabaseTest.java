@@ -33,7 +33,7 @@ public class MigratioDatabaseTest {
     }
 
     @Test
-    void sync_migrate_test() throws SQLException {
+    void sync_migrate_test() {
         ConnectionProvider connectionProvider = ConnectionProvider.accept("jdbc:sqlite:test-results/temp.db");
         SyncMigratioDatabase migratioDatabase = MigratioDatabase.newBuilder("io.tofpu.migratio")
                 .buildSync(connectionProvider);

@@ -114,10 +114,14 @@ public interface MigratioDatabase {
         }
 
         @Override
-        public String getCurrentVersion() throws SQLException {
-            try (Connection connection = connectionProvider.get()) {
-                DatabaseVersionAdapter versionAdapter = new DefaultDatabaseVersionAdapter(() -> connection);
-                return versionAdapter.readCurrentVersion();
+        public String getCurrentVersion() {
+            try {
+                try (Connection connection = connectionProvider.get()) {
+                    DatabaseVersionAdapter versionAdapter = new DefaultDatabaseVersionAdapter(() -> connection);
+                    return versionAdapter.readCurrentVersion();
+                }
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
             }
         }
     }
@@ -138,13 +142,7 @@ public interface MigratioDatabase {
 
         @Override
         public CompletableFuture<String> getCurrentVersion() {
-            return supplyAsync(() -> {
-                try {
-                    return delegate.getCurrentVersion();
-                } catch (SQLException e) {
-                    throw new RuntimeException(e);
-                }
-            });
+            return supplyAsync(delegate::getCurrentVersion);
         }
 
         private CompletableFuture<Void> runAsync(Runnable runnable) {
