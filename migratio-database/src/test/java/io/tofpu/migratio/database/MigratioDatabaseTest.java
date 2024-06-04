@@ -1,5 +1,6 @@
 package io.tofpu.migratio.database;
 
+import io.tofpu.migratio.annotation.MigrationExclude;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -107,6 +108,7 @@ public class MigratioDatabaseTest {
         return new SimpleDatabaseMigration(version, migrationContextConsumer);
     }
 
+    @MigrationExclude
     public static class SimpleDatabaseMigration implements DatabaseMigration {
         private final String version;
         private final Consumer<DatabaseMigrationContext> migrationContextConsumer;
