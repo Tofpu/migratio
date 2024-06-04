@@ -20,7 +20,8 @@ public class MigratioBuilderTest {
     @Test
     void migration_supplier_test() {
         TestBuilder builder = new TestBuilder("io.tofpu.migratio")
-                .setMigrationSupplier(() -> Collections.singletonList(TestMigration.class).toArray(new TestMigration[0]));
+                .setClassesSupplier(() -> new Class[0]) // exclude other migrations
+                .setMigrationSupplier(() -> Collections.singletonList(new TestMigration()).toArray(new TestMigration[0]));
 
         Collection<TestMigration> collection = builder.findAndSortMigrations(TestMigration.class);
         assertEquals(1, collection.size());
