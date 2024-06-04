@@ -38,11 +38,7 @@ public class MigratioDatabaseTest {
         SyncMigratioDatabase migratioDatabase = MigratioDatabase.newBuilder("io.tofpu.migratio")
                 .buildSync(connectionProvider);
 
-        try {
-            migratioDatabase.migrate();
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
+        migratioDatabase.migrate();
 
         try (Connection connection = connectionProvider.get()) {
             assertTrue(connection.createStatement().execute("SELECT name FROM persons WHERE name = 'Tofpu' AND age = '99'"));
@@ -102,11 +98,7 @@ public class MigratioDatabaseTest {
                 .setMigrationSupplier(() -> Arrays.asList(closeDbMigration, verifyConnectionIsOpenMigration).toArray(new DatabaseMigration[0]))
                 .buildSync(connectionProvider);
 
-        try {
-            migratioDatabase.migrate();
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
+        migratioDatabase.migrate();
 
         assertTrue(wasConnectionReopened.get());
     }

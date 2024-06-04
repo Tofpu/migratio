@@ -9,7 +9,7 @@ import java.sql.SQLException;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 public interface MigratioDatabase {
@@ -49,31 +49,67 @@ public interface MigratioDatabase {
             this.connectionProvider = connectionProvider;
         }
 
-        public void migrate() throws SQLException {
-            final AtomicReference<Connection> connectionRef = new AtomicReference<>(connectionProvider.get());
+        static class ReuseableConnectionProvider implements ConnectionProvider {
+            private final ConnectionProvider connectionProvider;
+            private Connection connection;
+
+            ReuseableConnectionProvider(ConnectionProvider connectionProvider) {
+                this.connectionProvider = connectionProvider;
+            }
+
+            @Override
+            public Connection get() {
+                if (isNotAvailable()) {
+                    connection = connectionProvider.get();
+                }
+                return connection;
+            }
+
+            private boolean isNotAvailable() {
+                try {
+                    return connection == null || connection.isClosed();
+                } catch (SQLException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+
+            private boolean isAvailable() {
+                return !isNotAvailable();
+            }
+
+            public void ifPresent(ThrowableConsumer<Connection> connectionConsumer) {
+                if (isAvailable()) {
+                    connectionConsumer.accept(connection);
+                }
+            }
+        }
+
+        interface ThrowableConsumer<T> extends Consumer<T> {
+            @Override
+            default void accept(T value) {
+                try {
+                    acceptThrows(value);
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            }
+
+            void acceptThrows(T value) throws Exception;
+        }
+
+        public void migrate() {
+            final ReuseableConnectionProvider connectionProvider = new ReuseableConnectionProvider(this.connectionProvider);
             try {
-                DatabaseVersionAdapter versionAdapter = new DefaultDatabaseVersionAdapter(connectionRef::get);
+                DatabaseVersionAdapter versionAdapter = new DefaultDatabaseVersionAdapter(connectionProvider::get);
                 String currentVersion = versionAdapter.readCurrentVersion();
 
                 migrate(currentVersion, databaseMigration -> {
-                    getNewConnectionIfClosed(connectionRef); // in-case the consumer accidentally closes the connection
-                    databaseMigration.handle(new DatabaseMigrationContext(connectionRef.get()));
-                    getNewConnectionIfClosed(connectionRef); // in-case the consumer accidentally closes the connection
+                    databaseMigration.handle(new DatabaseMigrationContext(connectionProvider.get()));
 
                     versionAdapter.write(databaseMigration);
                 });
             } finally {
-                connectionRef.get().close();
-            }
-        }
-
-        private void getNewConnectionIfClosed(AtomicReference<Connection> connection) {
-            try {
-                if (connection.get().isClosed()) {
-                    connection.set(connectionProvider.get());
-                }
-            } catch (SQLException e) {
-                throw new RuntimeException(e);
+                connectionProvider.ifPresent(Connection::close);
             }
         }
 
@@ -97,13 +133,7 @@ public interface MigratioDatabase {
 
         @Override
         public CompletableFuture<?> migrate() {
-            return runAsync(() -> {
-                try {
-                    delegate.migrate();
-                } catch (SQLException e) {
-                    throw new RuntimeException(e);
-                }
-            });
+            return runAsync(delegate::migrate);
         }
 
         @Override
