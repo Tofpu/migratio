@@ -3,6 +3,8 @@ package io.tofpu.migratio.database;
 import io.tofpu.migratio.Migratio;
 import io.tofpu.migratio.database.adapter.DatabaseVersionAdapter;
 import io.tofpu.migratio.database.adapter.DefaultDatabaseVersionAdapter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -127,6 +129,7 @@ public interface MigratioDatabase {
     }
 
     class AsyncMigratioDatabaseImpl implements AsyncMigratioDatabase {
+        private static final Logger LOGGER = LoggerFactory.getLogger(AsyncMigratioDatabase.class);
         private final SyncMigratioDatabase delegate;
         private final Executor executor;
 
@@ -137,12 +140,22 @@ public interface MigratioDatabase {
 
         @Override
         public CompletableFuture<?> migrate() {
-            return runAsync(delegate::migrate);
+            return runAsync(delegate::migrate)
+                    .whenComplete((unused, throwable) -> {
+                        if (throwable != null) {
+                            LOGGER.error("An error occurred while migrating the database!", throwable);
+                        }
+                    });
         }
 
         @Override
         public CompletableFuture<String> getCurrentVersion() {
-            return supplyAsync(delegate::getCurrentVersion);
+            return supplyAsync(delegate::getCurrentVersion)
+                    .whenComplete((unused, throwable) -> {
+                        if (throwable != null) {
+                            LOGGER.error("An error occurred while attempting to retrieve the current version of the database!", throwable);
+                        }
+                    });
         }
 
         private CompletableFuture<Void> runAsync(Runnable runnable) {
