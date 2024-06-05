@@ -3,6 +3,8 @@ package io.tofpu.migratio;
 import io.tofpu.migratio.annotation.MigrationExclude;
 import io.tofpu.migratio.util.ClassFinder;
 import io.tofpu.migratio.util.NaturalOrderComparator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -36,6 +38,8 @@ public abstract class Migratio<M extends Migration<?>> {
     }
 
     public static class Builder<B extends Builder<B, M>, M extends Migration<?>> {
+        private static final Logger LOGGER = LoggerFactory.getLogger(Builder.class);
+
         private ClassLoader classLoader;
         private Supplier<Class<?>[]> classesSupplier;
         private Supplier<M[]> migrationSupplier;
@@ -72,8 +76,14 @@ public abstract class Migratio<M extends Migration<?>> {
         protected Collection<M> findAndSortMigrations(Class<M> migrationType) {
             List<M> results = Arrays.stream(classesSupplier.get())
                     .filter(type -> !type.isInterface())
-                    .filter(type -> !type.isAnnotationPresent(MigrationExclude.class))
                     .filter(migrationType::isAssignableFrom)
+                    .filter(type -> {
+                        boolean present = type.isAnnotationPresent(MigrationExclude.class);
+                        if (present) {
+                            LOGGER.debug("Excluding migration class {} as it is annotated with MigrationExclude", type.getName());
+                        }
+                        return !present;
+                    })
                     .map(type -> {
                         try {
                             return migrationType.cast(type.newInstance());
